@@ -7,7 +7,7 @@ import { useUser } from '../store/user'
 import { useUI, toast } from '../store/ui'
 import { TrackList } from '../components/TrackList'
 import { AlbumCard, ArtistCard } from '../components/Cards'
-import { Cover } from '../components/Cover'
+import { Cover, DEFAULT_LOGO_URL } from '../components/Cover'
 import { fmtDuration, greeting, collator, shuffleArray } from '../lib/format'
 import { extractPalette } from '../lib/color'
 import { collectionMenu } from '../lib/actions'
@@ -33,8 +33,8 @@ export async function importFiles() {
 function EmptyLibrary() {
   return (
     <div className="empty" style={{ minHeight: '60vh' }}>
-      <motion.div className="empty-icon" initial={{ scale: 0.6, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 14 }}>
-        <Music2 size={40} />
+      <motion.div className="empty-icon logo" initial={{ scale: 0.6, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 14 }}>
+        <img src={DEFAULT_LOGO_URL} alt="Akumy Music" style={{ width: 64, height: 64, objectFit: 'contain' }} draggable={false} />
       </motion.div>
       <h2>欢迎使用 Akumy Music</h2>
       <p>导入本地音乐文件夹，开始你的聆听之旅。支持 MP3 / FLAC / M4A / OGG / OPUS / WAV。</p>
@@ -97,7 +97,7 @@ function CollectionHeader({
   const [tint, setTint] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    if (cover) extractPalette(`akumy://cover/${cover}`).then((p) => alive && setTint(p.css[0]))
+    if (cover) extractPalette(`akumy://cover/${encodeURIComponent(cover)}`).then((p) => alive && setTint(p.css[0]))
     else setTint(null)
     return () => {
       alive = false

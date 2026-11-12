@@ -1,16 +1,26 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Spectrum, useRaf } from './hooks'
 import type { Palette } from '../lib/color'
+import { DEFAULT_LOGO_URL } from '../components/Cover'
 
-/** Apple-Music-like flowing blurred cover background (cheap: blur a small layer, then upscale). */
+function useCoverOrLogoUrl(cover?: string) {
+  const raw = cover ? `akumy://cover/${encodeURIComponent(cover)}` : DEFAULT_LOGO_URL
+  const [url, setUrl] = useState(raw)
+  useEffect(() => {
+    setUrl(cover ? `akumy://cover/${encodeURIComponent(cover)}` : DEFAULT_LOGO_URL)
+  }, [cover])
+  return { url, onError: () => setUrl(DEFAULT_LOGO_URL) }
+}
+
+/** Flowing blurred cover background for Lyric Stage mode. */
 export function FlowingCover({ cover, playing }: { cover?: string; playing: boolean }) {
-  const url = cover ? `akumy://cover/${cover}` : undefined
+  const { url, onError } = useCoverOrLogoUrl(cover)
   return (
     <div className="np-bg">
       <AnimatePresence>
         <motion.div
-          key={url ?? 'none'}
+          key={url}
           className="flow-wrap"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -18,16 +28,10 @@ export function FlowingCover({ cover, playing }: { cover?: string; playing: bool
           transition={{ duration: 1.2 }}
         >
           <div className={`flow ${playing ? '' : 'paused'}`}>
-            {url ? (
-              <>
-                <img src={url} className="f1" alt="" />
-                <img src={url} className="f2" alt="" />
-                <img src={url} className="f3" alt="" />
-                <img src={url} className="f4" alt="" />
-              </>
-            ) : (
-              <div className="flow-fallback" />
-            )}
+            <img src={url} className="f1" onError={onError} alt="" />
+            <img src={url} className="f2" onError={onError} alt="" />
+            <img src={url} className="f3" onError={onError} alt="" />
+            <img src={url} className="f4" onError={onError} alt="" />
           </div>
         </motion.div>
       </AnimatePresence>
@@ -37,12 +41,12 @@ export function FlowingCover({ cover, playing }: { cover?: string; playing: bool
 }
 
 export function BlurredCover({ cover, dim = 0.35 }: { cover?: string; dim?: number }) {
-  const url = cover ? `akumy://cover/${cover}` : undefined
+  const { url, onError } = useCoverOrLogoUrl(cover)
   return (
     <div className="np-bg">
       <AnimatePresence>
-        <motion.div key={url ?? 'none'} className="blur-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1 }}>
-          {url ? <img src={url} alt="" /> : <div className="flow-fallback" />}
+        <motion.div key={url} className="blur-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1 }}>
+          <img src={url} onError={onError} alt="" />
         </motion.div>
       </AnimatePresence>
       <div className="np-bg-dim" style={{ background: `radial-gradient(circle at 50% 45%, rgba(0,0,0,${dim * 0.5}), rgba(0,0,0,${dim + 0.25}))` }} />

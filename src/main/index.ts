@@ -12,6 +12,7 @@ import {
   removeTracks,
   getTrack,
   refreshTrack,
+  resolveCoverPath,
   coversDir,
   wallpapersDir,
   saveNow,
@@ -61,7 +62,18 @@ async function serveFile(file: string, req: Request): Promise<Response> {
     'Content-Type': type,
     'Accept-Ranges': 'bytes',
     'Access-Control-Allow-Origin': '*',
-    'Cache-Control': type.startsWith('image') ? 'max-age=31536000' : 'no-cache'
+    'Cache-Control': type.startsWith('image') ? 'public, max-age=31536000, immutable' : 'no-cache'
+  }
+  if (type.startsWith('image/')) {
+    try {
+      const buf = await fs.readFile(file)
+      return new Response(buf, {
+        status: 200,
+        headers: { ...base, 'Content-Length': String(buf.byteLength) }
+      })
+    } catch {
+      return new Response('not found', { status: 404 })
+    }
   }
   const range = req.headers.get('range')
   if (range) {
@@ -100,7 +112,13 @@ function registerProtocol() {
     }
     const name = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
     if (name.includes('..')) return new Response('forbidden', { status: 403 })
-    if (host === 'cover') return serveFile(path.join(coversDir(), name), req)
+    if (host === 'cover') {
+      const resolved = await resolveCoverPath(name)
+      if (resolved) return serveFile(resolved, req)
+      const fallbackLogo = path.join(__dirname, '../../resources/icon.png')
+      if (existsSync(fallbackLogo)) return serveFile(fallbackLogo, req)
+      return new Response('not found', { status: 404 })
+    }
     if (host === 'wallpaper') return serveFile(path.join(wallpapersDir(), name), req)
     return new Response('not found', { status: 404 })
   })

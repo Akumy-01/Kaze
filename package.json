@@ -2,7 +2,7 @@
   "name": "akumy-music",
   "productName": "Akumy Music",
   "version": "1.0.0",
-  "description": "Apple-inspired Windows local music player with online lyrics, Japanese romaji, lyric embedding & multi-mode visualizer",
+  "description": "High-resolution Windows local music player with online lyrics, Japanese romaji, lyric embedding & multi-mode visualizer",
   "main": "./out/main/index.js",
   "author": "Akumy",
   "license": "MIT",

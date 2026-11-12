@@ -74,9 +74,12 @@ export interface SaveLyricsResult {
   error?: string
 }
 
+export type OnlineLyricSource = 'all' | 'netease' | 'lrclib' | 'kugou'
+
 export interface TrackQuery {
   title: string
   artist: string
   album?: string
   duration?: number
+  source?: OnlineLyricSource
 }

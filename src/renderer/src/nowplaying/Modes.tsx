@@ -79,16 +79,16 @@ function NoLyrics({ compact = false }: { compact?: boolean }) {
 }
 
 /* ================================================================== */
-/* Apple Music mode                                                    */
+/* Lyric Stage mode                                                    */
 /* ================================================================== */
 
-export function AppleMode({ t }: { t: Track }) {
+export function LyricStageMode({ t }: { t: Track }) {
   const playing = usePlayer((s) => s.playing)
   const lyrics = useLyrics((s) => s.lyrics)
   const showLyrics = useSettings((s) => s.npShowLyrics)
   const split = showLyrics
   return (
-    <div className={`np-apple ${split ? 'split' : 'single'}`}>
+    <div className={`np-lyric ${split ? 'split' : 'single'}`}>
       <FlowingCover cover={t.cover} playing={playing} />
       <motion.div layout className="am-left" transition={{ type: 'spring', stiffness: 200, damping: 30 }}>
         <motion.div

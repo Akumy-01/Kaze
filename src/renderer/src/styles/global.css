@@ -196,6 +196,22 @@ img {
   align-items: center;
   padding: 0 16px;
   flex-shrink: 0;
+  gap: 10px;
+}
+.sidebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.sidebar-brand img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
 }
 
 .sidebar-search {
@@ -634,7 +650,15 @@ img {
   display: grid;
   place-items: center;
   color: var(--text-3);
-  background: linear-gradient(135deg, var(--fill), var(--fill-2));
+  background: radial-gradient(circle at 30% 25%, rgba(222, 46, 62, 0.14), rgba(43, 102, 219, 0.14) 55%, rgba(246, 196, 79, 0.12)),
+    linear-gradient(135deg, var(--fill), var(--fill-2));
+}
+.cover .cover-logo-fallback {
+  width: 56%;
+  height: 56%;
+  object-fit: contain;
+  opacity: 0.92;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.18));
 }
 .cover::after {
   content: '';
@@ -1368,6 +1392,11 @@ img {
   color: #fff;
   box-shadow: 0 16px 40px rgba(var(--accent-rgb), 0.35);
   margin-bottom: 10px;
+}
+.empty .empty-icon.logo {
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  box-shadow: var(--shadow);
 }
 .empty h2 {
   color: var(--text);

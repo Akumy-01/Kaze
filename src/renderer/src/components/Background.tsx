@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useSettings } from '../store/settings'
 import { usePlayer } from '../store/player'
 import { useLibrary } from '../store/library'
+import { DEFAULT_LOGO_URL } from './Cover'
 
 export function Background() {
   const { bgType, wallpaper, blur, dim, accent } = useSettings()
@@ -11,7 +12,7 @@ export function Background() {
 
   let img: string | undefined
   if (bgType === 'image' && wallpaper) img = wallpaper
-  if (bgType === 'cover' && cover) img = `akumy://cover/${cover}`
+  if (bgType === 'cover') img = cover ? `akumy://cover/${encodeURIComponent(cover)}` : DEFAULT_LOGO_URL
   const effBlur = bgType === 'cover' ? Math.max(blur, 40) : blur
 
   return (

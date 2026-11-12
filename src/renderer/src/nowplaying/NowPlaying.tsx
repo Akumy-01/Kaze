@@ -1,14 +1,15 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Disc3, Sparkles, Apple, MessageSquareQuote, ListMusic, FileMusic } from 'lucide-react'
+import { ChevronDown, Disc3, Sparkles, MessageSquareQuote, ListMusic, FileMusic } from 'lucide-react'
 import { usePlayer } from '../store/player'
 import { useLibrary } from '../store/library'
 import { useUI } from '../store/ui'
 import { useSettings, type NpMode } from '../store/settings'
 import { Segmented } from '../components/Controls'
+import { LogoMark } from '../components/Cover'
 import { TrafficLights, WinControls } from '../components/WindowControls'
 import { QueuePanel } from '../components/Dialogs'
-import { AppleMode, VinylMode, AuroraMode } from './Modes'
+import { LyricStageMode, VinylMode, AuroraMode } from './Modes'
 import { LyricsPanel } from './LyricsPanel'
 import { useIdle } from './hooks'
 import './nowplaying.css'
@@ -18,7 +19,8 @@ export function NowPlaying() {
   const setOpen = useUI((s) => s.setNowPlaying)
   const currentId = usePlayer((s) => s.currentId)
   const track = useLibrary((s) => (currentId ? s.byId.get(currentId) : undefined))
-  const { npMode, npShowLyrics, set, windowControls } = useSettings()
+  const { npMode: rawMode, npShowLyrics, set, windowControls } = useSettings()
+  const npMode: NpMode = (rawMode as string) === 'apple' ? 'lyric' : rawMode
   const queueOpen = useUI((s) => s.queueOpen)
   const toggleQueue = useUI((s) => s.toggleQueue)
   const lyricsPanel = useUI((s) => s.lyricsPanel)
@@ -51,7 +53,7 @@ export function NowPlaying() {
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
-              {npMode === 'apple' && <AppleMode t={track} />}
+              {npMode === 'lyric' && <LyricStageMode t={track} />}
               {npMode === 'vinyl' && <VinylMode t={track} />}
               {npMode === 'aurora' && <AuroraMode t={track} />}
             </motion.div>
@@ -70,14 +72,14 @@ export function NowPlaying() {
                 value={npMode}
                 onChange={(v) => set({ npMode: v })}
                 options={[
-                  { value: 'apple', label: <Apple size={14} />, title: 'Apple Music' },
+                  { value: 'lyric', label: <LogoMark size={14} />, title: '灵动歌词' },
                   { value: 'vinyl', label: <Disc3 size={14} />, title: '黑胶唱片' },
-                  { value: 'aurora', label: <Sparkles size={14} />, title: '流光' }
+                  { value: 'aurora', label: <Sparkles size={14} />, title: '流光舞台' }
                 ]}
               />
             </div>
             <div className="np-top-right no-drag">
-              {npMode === 'apple' && (
+              {npMode === 'lyric' && (
                 <button className={`np-round-btn ${npShowLyrics ? 'on' : ''}`} onClick={() => set({ npShowLyrics: !npShowLyrics })} title="显示/隐藏歌词">
                   <MessageSquareQuote size={16} />
                 </button>

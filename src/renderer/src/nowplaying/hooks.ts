@@ -8,7 +8,7 @@ export function usePalette(cover?: string): Palette {
   const [p, setP] = useState<Palette>(DEFAULT_PALETTE)
   useEffect(() => {
     let alive = true
-    extractPalette(cover ? `akumy://cover/${cover}` : undefined).then((x) => alive && setP(x))
+    extractPalette(cover ? `akumy://cover/${encodeURIComponent(cover)}` : undefined).then((x) => alive && setP(x))
     return () => {
       alive = false
     }

@@ -226,7 +226,12 @@ async function fetchKugou(c: LyricCandidate): Promise<Omit<LyricPayload, 'source
 /* ------------------------------------------------------------------ */
 
 export async function searchLyrics(q: TrackQuery): Promise<LyricCandidate[]> {
-  const results = await Promise.allSettled([searchNetease(q), searchLrclib(q), searchKugou(q)])
+  const src = q.source ?? 'all'
+  const tasks: Promise<LyricCandidate[]>[] = []
+  if (src === 'all' || src === 'netease') tasks.push(searchNetease(q))
+  if (src === 'all' || src === 'lrclib') tasks.push(searchLrclib(q))
+  if (src === 'all' || src === 'kugou') tasks.push(searchKugou(q))
+  const results = await Promise.allSettled(tasks)
   const all: LyricCandidate[] = []
   for (const r of results) if (r.status === 'fulfilled') all.push(...r.value)
   for (const c of all) c.score = scoreCandidate(q, c)

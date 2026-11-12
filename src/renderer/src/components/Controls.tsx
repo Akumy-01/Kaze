@@ -11,7 +11,7 @@ interface SliderProps {
   wheelStep?: number
 }
 
-/** Apple-like slider. When onCommit is provided, onChange is only for preview during drag. */
+/** Smooth range slider. When onCommit is provided, onChange is only for preview during drag. */
 export function Slider({ value, max = 1, onChange, onCommit, className = '', thumb = false, wheelStep }: SliderProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<number | null>(null)

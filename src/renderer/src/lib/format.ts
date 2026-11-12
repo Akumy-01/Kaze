@@ -1,7 +1,7 @@
 import type { Track } from '../../../shared/types'
 
 export const mediaUrl = (p: string) => `akumy://media/?p=${encodeURIComponent(p)}`
-export const coverUrl = (t?: Pick<Track, 'cover'> | null) => (t?.cover ? `akumy://cover/${t.cover}` : undefined)
+export const coverUrl = (t?: Pick<Track, 'cover'> | null) => (t?.cover ? `akumy://cover/${encodeURIComponent(t.cover)}` : undefined)
 
 export function fmtTime(sec: number) {
   if (!isFinite(sec) || sec < 0) sec = 0

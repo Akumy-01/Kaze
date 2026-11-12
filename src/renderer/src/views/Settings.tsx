@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Sun, Moon, Monitor, Check, ImagePlus, FolderPlus, RefreshCw, X, Disc3, Sparkles, Apple, ExternalLink, Palette, Image as ImageIcon, Square } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, ImagePlus, FolderPlus, RefreshCw, X, Disc3, Sparkles, ExternalLink, Palette, Image as ImageIcon, Square } from 'lucide-react'
 import { useSettings, ACCENTS, type BgType, type NpMode, type SaveMode } from '../store/settings'
 import { useLibrary } from '../store/library'
 import { toast } from '../store/ui'
 import { Segmented, Slider, Switch } from '../components/Controls'
+import { LogoMark, DEFAULT_LOGO_URL } from '../components/Cover'
 import { importFolder } from './Library'
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
@@ -53,7 +54,8 @@ function Row({ label, desc, children, column }: { label: ReactNode; desc?: React
 
 function ModeCard({ mode, icon, title, desc }: { mode: NpMode; icon: ReactNode; title: string; desc: string }) {
   const { npMode, set } = useSettings()
-  const on = npMode === mode
+  const curMode: NpMode = (npMode as string) === 'apple' ? 'lyric' : npMode
+  const on = curMode === mode
   return (
     <motion.button
       whileHover={{ y: -2 }}
@@ -232,7 +234,7 @@ export function SettingsView() {
             value={s.windowControls}
             onChange={(v) => s.set({ windowControls: v })}
             options={[
-              { value: 'mac', label: 'macOS 风格' },
+              { value: 'mac', label: '经典圆点' },
               { value: 'windows', label: 'Windows 风格' }
             ]}
           />
@@ -244,9 +246,9 @@ export function SettingsView() {
 
       <Group title="播放界面">
         <div style={{ display: 'flex', gap: 12, padding: 14, borderBottom: '1px solid var(--sep)' }}>
-          <ModeCard mode="apple" icon={<Apple size={20} />} title="Apple Music" desc="流动封面背景 + 弹性滚动歌词" />
+          <ModeCard mode="lyric" icon={<LogoMark size={20} />} title="灵动歌词" desc="流动封面背景 + 弹性滚动歌词" />
           <ModeCard mode="vinyl" icon={<Disc3 size={20} />} title="黑胶唱片" desc="旋转唱片 + 环绕式音频可视化" />
-          <ModeCard mode="aurora" icon={<Sparkles size={20} />} title="流光" desc="极光背景 + 沉浸式卡拉OK歌词" />
+          <ModeCard mode="aurora" icon={<Sparkles size={20} />} title="流光舞台" desc="极光背景 + 沉浸式卡拉OK歌词" />
         </div>
         <Row label="唱片可视化样式">
           <Segmented
@@ -349,7 +351,15 @@ export function SettingsView() {
       </Group>
 
       <Group title="关于">
-        <Row label="Akumy Music" desc={`版本 ${version} · 一款拥有 Apple 质感的本地音乐播放器`}>
+        <Row
+          label={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <img src={DEFAULT_LOGO_URL} width={22} height={22} alt="" style={{ display: 'block' }} />
+              Akumy Music
+            </span>
+          }
+          desc={`版本 ${version} · 纯净灵动的高解析度本地音乐播放器`}
+        >
           <button className="btn" onClick={() => window.akumy.openExternal('https://github.com/Akumy-01/akumy-music')}>
             <ExternalLink size={14} />
             GitHub

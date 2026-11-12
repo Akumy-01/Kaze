@@ -3,10 +3,11 @@ import { promises as fs, existsSync } from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { parseFile } from 'music-metadata'
+import { File as TagFile } from 'node-taglib-sharp'
 import type { LibraryData, ScanProgress, Track } from '../shared/types'
 
 export const AUDIO_EXTS = new Set(['.mp3', '.flac', '.m4a', '.aac', '.ogg', '.oga', '.opus', '.wav', '.webm'])
-const COVER_NAMES = ['cover', 'folder', 'front', 'album', 'albumart']
+const COVER_NAMES = ['cover', 'folder', 'front', 'album', 'albumart', 'thumb', 'artwork']
 
 const dataDir = () => app.getPath('userData')
 export const coversDir = () => path.join(dataDir(), 'covers')
@@ -76,35 +77,85 @@ async function walk(dir: string, out: string[]) {
   }
 }
 
-async function saveCover(data: Uint8Array, format?: string): Promise<string> {
+function detectImageExt(data: Uint8Array, format?: string): string {
+  if (data.length >= 4) {
+    if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return '.png'
+    if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46) return '.webp'
+    if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return '.gif'
+    if (data[0] === 0xff && data[1] === 0xd8) return '.jpg'
+  }
+  if (format?.toLowerCase().includes('png')) return '.png'
+  if (format?.toLowerCase().includes('webp')) return '.webp'
+  if (format?.toLowerCase().includes('gif')) return '.gif'
+  return '.jpg'
+}
+
+async function saveCover(data: Uint8Array, format?: string): Promise<string | undefined> {
+  if (!data || data.byteLength < 16) return undefined
   const hash = crypto.createHash('sha1').update(data).digest('hex').slice(0, 20)
-  const ext = format?.includes('png') ? '.png' : '.jpg'
+  const ext = detectImageExt(data, format)
   const name = hash + ext
   const file = path.join(coversDir(), name)
   if (!existsSync(file)) await fs.writeFile(file, data)
   return name
 }
 
-const folderCoverCache = new Map<string, string | null>()
-async function findFolderCover(dir: string): Promise<string | undefined> {
-  if (folderCoverCache.has(dir)) return folderCoverCache.get(dir) ?? undefined
-  let found: string | null = null
+function extractTaglibPicture(file: string): { data: Uint8Array; format?: string } | null {
+  let f: TagFile | null = null
   try {
-    const files = await fs.readdir(dir)
-    const img = files.find((f) => {
-      const ext = path.extname(f).toLowerCase()
-      const base = path.basename(f, ext).toLowerCase()
-      return ['.jpg', '.jpeg', '.png', '.webp'].includes(ext) && COVER_NAMES.includes(base)
-    })
-    if (img) {
-      const data = await fs.readFile(path.join(dir, img))
-      found = await saveCover(data, path.extname(img))
+    f = TagFile.createFromPath(file)
+    const pic = f.tag?.pictures?.[0]
+    if (pic?.data && pic.data.length > 16) {
+      return { data: pic.data.toByteArray(), format: pic.mimeType }
     }
   } catch {
     /* ignore */
+  } finally {
+    try {
+      f?.dispose()
+    } catch {
+      /* ignore */
+    }
   }
-  folderCoverCache.set(dir, found)
-  return found ?? undefined
+  return null
+}
+
+const folderCoverCache = new Map<string, string | null>()
+async function findFolderCover(dir: string, audioFile?: string): Promise<string | undefined> {
+  try {
+    const files = await fs.readdir(dir)
+    const imgExts = ['.jpg', '.jpeg', '.png', '.webp']
+    if (audioFile) {
+      const audioBase = path.basename(audioFile, path.extname(audioFile)).toLowerCase()
+      const sidecarImg = files.find((f) => {
+        const ext = path.extname(f).toLowerCase()
+        const base = path.basename(f, ext).toLowerCase()
+        return imgExts.includes(ext) && base === audioBase
+      })
+      if (sidecarImg) {
+        const data = await fs.readFile(path.join(dir, sidecarImg))
+        const saved = await saveCover(data, path.extname(sidecarImg))
+        if (saved) return saved
+      }
+    }
+    if (folderCoverCache.has(dir)) return folderCoverCache.get(dir) ?? undefined
+    let found: string | null = null
+    const allImages = files.filter((f) => imgExts.includes(path.extname(f).toLowerCase()))
+    const namedImg =
+      allImages.find((f) => {
+        const ext = path.extname(f).toLowerCase()
+        const base = path.basename(f, ext).toLowerCase()
+        return COVER_NAMES.includes(base)
+      }) ?? (allImages.length === 1 ? allImages[0] : undefined)
+    if (namedImg) {
+      const data = await fs.readFile(path.join(dir, namedImg))
+      found = (await saveCover(data, path.extname(namedImg))) ?? null
+    }
+    folderCoverCache.set(dir, found)
+    return found ?? undefined
+  } catch {
+    return undefined
+  }
 }
 
 function guessFromFilename(file: string) {
@@ -123,8 +174,12 @@ export async function parseTrack(file: string, prev?: Track): Promise<Track | nu
     const guess = guessFromFilename(file)
     let cover: string | undefined
     const pic = c.picture?.find((p) => /front|cover/i.test(p.type ?? '')) ?? c.picture?.[0]
-    if (pic) cover = await saveCover(pic.data, pic.format)
-    else cover = await findFolderCover(path.dirname(file))
+    if (pic?.data?.byteLength) cover = await saveCover(pic.data, pic.format)
+    if (!cover) {
+      const tlPic = extractTaglibPicture(file)
+      if (tlPic) cover = await saveCover(tlPic.data, tlPic.format)
+    }
+    if (!cover) cover = await findFolderCover(path.dirname(file), file)
 
     const lyrics = (c.lyrics ?? []).some((l: unknown) => {
       if (typeof l === 'string') return l.trim().length > 0
@@ -211,7 +266,8 @@ async function scanFiles(files: string[], win: BrowserWindow | null, force = fal
     } else {
       try {
         const st = await fs.stat(file)
-        if (st.mtimeMs !== prev.mtime || st.size !== prev.size) track = await parseTrack(file, prev)
+        const coverMissing = prev.cover ? !existsSync(path.join(coversDir(), prev.cover)) : false
+        if (st.mtimeMs !== prev.mtime || st.size !== prev.size || coverMissing) track = await parseTrack(file, prev)
       } catch {
         track = null
       }
@@ -270,4 +326,19 @@ export async function refreshTrack(id: string) {
     scheduleSave()
   }
   return t
+}
+
+/** Ensure cover file exists on disk; if missing, try re-extracting from matching track. */
+export async function resolveCoverPath(name: string): Promise<string | null> {
+  const direct = path.join(coversDir(), name)
+  if (existsSync(direct)) return direct
+  const owner = library.tracks.find((t) => t.cover === name || t.id === name)
+  if (owner && existsSync(owner.path)) {
+    const refreshed = await refreshTrack(owner.id)
+    if (refreshed?.cover) {
+      const p = path.join(coversDir(), refreshed.cover)
+      if (existsSync(p)) return p
+    }
+  }
+  return null
 }

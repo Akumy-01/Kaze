@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Search, Loader2, Download, FileText, RotateCcw, Minus, Plus, Check, Globe2, Languages } from 'lucide-react'
-import type { LyricCandidate, Track } from '../../../shared/types'
+import type { LyricCandidate, OnlineLyricSource, Track } from '../../../shared/types'
 import { useLyrics } from '../store/lyrics'
 import { useUI, toast } from '../store/ui'
 import { useUser } from '../store/user'
 import { useSettings } from '../store/settings'
-import { Switch } from '../components/Controls'
+import { Segmented, Switch } from '../components/Controls'
 import { fmtTime } from '../lib/format'
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -26,6 +26,7 @@ export function LyricsPanel({ t }: { t: Track }) {
   const settings = useSettings()
   const [title, setTitle] = useState(t.title)
   const [artist, setArtist] = useState(t.artist)
+  const [source, setSource] = useState<OnlineLyricSource>('all')
   const [results, setResults] = useState<LyricCandidate[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [applying, setApplying] = useState<string | null>(null)
@@ -36,16 +37,31 @@ export function LyricsPanel({ t }: { t: Track }) {
     setResults(null)
   }, [t.id])
 
-  const search = async () => {
+  const search = async (overrideSource?: OnlineLyricSource) => {
+    if (!title.trim()) return
+    const activeSource = overrideSource ?? source
     setSearching(true)
     try {
-      const r = await window.akumy.lyrics.search({ title, artist, album: t.album, duration: t.duration })
+      const r = await window.akumy.lyrics.search({
+        title,
+        artist,
+        album: t.album,
+        duration: t.duration,
+        source: activeSource
+      })
       setResults(r)
       if (!r.length) toast('没有找到匹配的歌词')
     } catch {
       toast('搜索失败，请检查网络连接', 'error')
     } finally {
       setSearching(false)
+    }
+  }
+
+  const onSourceChange = (nextSource: OnlineLyricSource) => {
+    setSource(nextSource)
+    if (results !== null && title.trim() && !searching) {
+      void search(nextSource)
     }
   }
 
@@ -167,10 +183,23 @@ export function LyricsPanel({ t }: { t: Track }) {
                 <Globe2 size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
                 搜索在线歌词
               </div>
+              <div className="lp-source-seg">
+                <Segmented<OnlineLyricSource>
+                  layoutId="lp-online-source"
+                  value={source}
+                  onChange={onSourceChange}
+                  options={[
+                    { value: 'all', label: '全部音源' },
+                    { value: 'netease', label: '网易云' },
+                    { value: 'lrclib', label: 'LRCLIB' },
+                    { value: 'kugou', label: '酷狗' }
+                  ]}
+                />
+              </div>
               <input className="lp-input" placeholder="歌曲名" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} />
               <input className="lp-input" placeholder="艺人（可选）" value={artist} onChange={(e) => setArtist(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} />
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="np-pill solid" onClick={search} disabled={searching || !title.trim()} style={{ flex: 1 }}>
+                <button className="np-pill solid" onClick={() => search()} disabled={searching || !title.trim()} style={{ flex: 1 }}>
                   {searching ? <Loader2 size={13} className="spin" /> : <Search size={13} />}
                   搜索
                 </button>

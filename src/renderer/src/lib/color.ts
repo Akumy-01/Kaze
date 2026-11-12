@@ -9,12 +9,12 @@ const cache = new Map<string, Promise<Palette>>()
 
 export const DEFAULT_PALETTE: Palette = {
   colors: [
-    [250, 45, 72],
-    [120, 60, 200],
-    [40, 90, 200],
-    [30, 30, 40]
+    [222, 46, 62],
+    [43, 102, 219],
+    [246, 196, 79],
+    [24, 34, 68]
   ],
-  css: ['rgb(250,45,72)', 'rgb(120,60,200)', 'rgb(40,90,200)', 'rgb(30,30,40)'],
+  css: ['rgb(222,46,62)', 'rgb(43,102,219)', 'rgb(246,196,79)', 'rgb(24,34,68)'],
   dark: true
 }
 

@@ -16,6 +16,7 @@ import {
 import { useUI, type View, toast } from '../store/ui'
 import { useUser } from '../store/user'
 import { useLibrary } from '../store/library'
+import { DEFAULT_LOGO_URL } from './Cover'
 import { TrafficLights, useWinStyle } from './WindowControls'
 import type { ReactNode } from 'react'
 
@@ -53,7 +54,13 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-top drag">{winStyle === 'mac' && <TrafficLights />}</div>
+      <div className="sidebar-top drag">
+        {winStyle === 'mac' && <TrafficLights />}
+        <div className="sidebar-brand" style={{ marginLeft: winStyle === 'mac' ? 'auto' : 0 }}>
+          <img src={DEFAULT_LOGO_URL} alt="Akumy Music" draggable={false} />
+          <span>Akumy Music</span>
+        </div>
+      </div>
       <div className="sidebar-search">
         <Search size={14} />
         <input
