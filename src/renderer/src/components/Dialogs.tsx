@@ -1,0 +1,249 @@
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { X, Trash2, Loader2 } from 'lucide-react'
+import { useUI, toast } from '../store/ui'
+import { useUser } from '../store/user'
+import { useLibrary } from '../store/library'
+import { usePlayer } from '../store/player'
+import { Cover } from './Cover'
+import { fmtTime, fmtSize, qualityLabel } from '../lib/format'
+
+function Modal({ onClose, children, width }: { onClose: () => void; children: React.ReactNode; width?: number }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [onClose])
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={onClose}>
+      <motion.div
+        className="modal"
+        style={width ? { width } : undefined}
+        initial={{ opacity: 0, scale: 0.92, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {children}
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function NameDialog({ title, initial, confirm, onSubmit, onClose }: { title: string; initial: string; confirm: string; onSubmit: (n: string) => void; onClose: () => void }) {
+  const [name, setName] = useState(initial)
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    setTimeout(() => ref.current?.select(), 50)
+  }, [])
+  const submit = () => {
+    if (!name.trim()) return
+    onSubmit(name.trim())
+    onClose()
+  }
+  return (
+    <Modal onClose={onClose}>
+      <h3>{title}</h3>
+      <input ref={ref} className="text-input" style={{ width: '100%' }} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>
+          取消
+        </button>
+        <button className="btn primary" onClick={submit} disabled={!name.trim()}>
+          {confirm}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function TrackInfo({ id, onClose }: { id: string; onClose: () => void }) {
+  const t = useLibrary((s) => s.byId.get(id))
+  if (!t) return null
+  const rows: [string, React.ReactNode][] = [
+    ['标题', t.title],
+    ['艺人', t.artist],
+    ['专辑', t.album],
+    ['专辑艺人', t.albumArtist],
+    ['年份', t.year ?? '—'],
+    ['流派', t.genre ?? '—'],
+    ['音轨', t.trackNo ? `${t.discNo ? t.discNo + '-' : ''}${t.trackNo}` : '—'],
+    ['时长', fmtTime(t.duration)],
+    ['格式', `${t.format} · ${qualityLabel(t)}`],
+    ['采样率', t.sampleRate ? `${(t.sampleRate / 1000).toFixed(1)} kHz${t.bitsPerSample ? ` / ${t.bitsPerSample} bit` : ''}` : '—'],
+    ['比特率', t.bitrate ? `${Math.round(t.bitrate / 1000)} kbps` : '—'],
+    ['大小', fmtSize(t.size)],
+    ['歌词', t.hasLyrics ? '已有本地歌词' : '无'],
+    ['位置', <span style={{ wordBreak: 'break-all', userSelect: 'text' }}>{t.path}</span>]
+  ]
+  return (
+    <Modal onClose={onClose} width={520}>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
+        <Cover cover={t.cover} style={{ width: 84, borderRadius: 10, boxShadow: 'var(--shadow)' }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{t.title}</div>
+          <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{t.artist}</div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px 12px', fontSize: 13 }}>
+        {rows.map(([k, v]) => (
+          <div key={k} style={{ display: 'contents' }}>
+            <div style={{ color: 'var(--text-2)', textAlign: 'right' }}>{k}</div>
+            <div>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={() => window.akumy.showItem(t.path)}>
+          在资源管理器中显示
+        </button>
+        <button className="btn primary" onClick={onClose}>
+          完成
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+export function Dialogs() {
+  const dialog = useUI((s) => s.dialog)
+  const close = () => useUI.getState().openDialog(null)
+  return (
+    <AnimatePresence>
+      {dialog?.kind === 'newPlaylist' && (
+        <NameDialog
+          key="new"
+          title="新建歌单"
+          initial="未命名歌单"
+          confirm="创建"
+          onClose={close}
+          onSubmit={(name) => {
+            const id = useUser.getState().createPlaylist(name, dialog.trackIds)
+            toast(dialog.trackIds?.length ? `已创建歌单「${name}」并添加歌曲` : `已创建歌单「${name}」`, 'success')
+            if (!dialog.trackIds?.length) useUI.getState().navigate({ name: 'playlist', param: id })
+          }}
+        />
+      )}
+      {dialog?.kind === 'rename' && (
+        <NameDialog key="rename" title="重命名歌单" initial={dialog.name} confirm="完成" onClose={close} onSubmit={(name) => useUser.getState().renamePlaylist(dialog.id, name)} />
+      )}
+      {dialog?.kind === 'trackInfo' && <TrackInfo key="info" id={dialog.id} onClose={close} />}
+    </AnimatePresence>
+  )
+}
+
+export function ScanPill() {
+  const p = useLibrary((s) => s.progress)
+  const show = p && p.phase !== 'done'
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div className="scan-pill" initial={{ opacity: 0, y: 20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 20, x: '-50%' }}>
+          <Loader2 size={14} className="spin" />
+          <span>{p!.phase === 'collect' ? '正在查找音乐文件…' : `正在导入 ${p!.current} / ${p!.total}`}</span>
+          {p!.phase === 'parse' && (
+            <div className="bar">
+              <i style={{ width: `${(p!.current / Math.max(1, p!.total)) * 100}%` }} />
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+export function QueuePanel({ onNp = false }: { onNp?: boolean }) {
+  const open = useUI((s) => s.queueOpen)
+  const toggle = useUI((s) => s.toggleQueue)
+  const queue = usePlayer((s) => s.queue)
+  const index = usePlayer((s) => s.index)
+  const byId = useLibrary((s) => s.byId)
+  const p = usePlayer.getState()
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (open) setTimeout(() => listRef.current?.querySelector('.current')?.scrollIntoView({ block: 'center' }), 60)
+  }, [open])
+
+  const upcoming = queue.slice(index + 1, index + 301)
+  const cur = byId.get(queue[index])
+
+  const item = (id: string, i: number, extra = '') => {
+    const t = byId.get(id)
+    if (!t) return null
+    return (
+      <div
+        key={`${id}-${i}`}
+        className={`qp-item ${extra} ${dragFrom === i ? 'dragging' : ''}`}
+        style={dragOver === i && dragFrom !== null && dragFrom !== i ? { boxShadow: `inset 0 ${dragFrom < i ? -2 : 2}px 0 var(--accent)` } : undefined}
+        draggable={i !== index}
+        onDragStart={() => setDragFrom(i)}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(i)
+        }}
+        onDragEnd={() => {
+          setDragFrom(null)
+          setDragOver(null)
+        }}
+        onDrop={() => {
+          if (dragFrom !== null && dragFrom !== i) p.moveInQueue(dragFrom, i)
+          setDragFrom(null)
+          setDragOver(null)
+        }}
+        onDoubleClick={() => p.jumpTo(i)}
+      >
+        <Cover cover={t.cover} iconSize={14} />
+        <div className="qp-meta">
+          <div className="qp-t">{t.title}</div>
+          <div className="qp-a">{t.artist}</div>
+        </div>
+        {i !== index && (
+          <button className="icon-btn qp-x" onClick={() => p.removeAt(i)} title="移除">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className={`queue-panel ${onNp ? 'on-np' : ''}`}
+          initial={{ opacity: 0, x: 40, scale: 0.97 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 40, scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        >
+          <div className="qp-head">
+            <h3>播放队列</h3>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="icon-btn" title="清空队列" onClick={p.clearQueue}>
+                <Trash2 size={15} />
+              </button>
+              <button className="icon-btn" onClick={() => toggle(false)}>
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="qp-list" ref={listRef}>
+            {cur && (
+              <>
+                <div className="qp-label">正在播放</div>
+                {item(queue[index], index, 'current')}
+              </>
+            )}
+            <div className="qp-label">接下来播放 · {queue.length - index - 1} 首</div>
+            {upcoming.map((id, k) => item(id, index + 1 + k))}
+            {!upcoming.length && <div style={{ padding: '20px 8px', color: 'var(--text-3)', fontSize: 12.5 }}>队列里没有更多歌曲了</div>}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}

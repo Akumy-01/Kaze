@@ -1,0 +1,22 @@
+appId: com.akumy.music
+productName: Akumy Music
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.*'
+  - '!tsconfig*.json'
+asarUnpack:
+  - node_modules/kuromoji/dict/**
+win:
+  icon: resources/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Akumy Music
