@@ -1,0 +1,1085 @@
+/* ------------------------------------------------------------ */
+/* Now Playing Overlay & Modes                                   */
+/* ------------------------------------------------------------ */
+
+.np {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: transparent;
+  color: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.65);
+  --text-3: rgba(255, 255, 255, 0.38);
+  --hover: rgba(255, 255, 255, 0.1);
+  --active: rgba(255, 255, 255, 0.16);
+  --fill: rgba(255, 255, 255, 0.14);
+  --fill-2: rgba(255, 255, 255, 0.24);
+  --sep: rgba(255, 255, 255, 0.12);
+}
+
+.np.phase-closing {
+  pointer-events: none;
+}
+
+/* Single unified compositor scene container so background, ribbons & controls fade atomically without leaking over player bar */
+.np-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #0d0d10;
+  will-change: opacity;
+}
+
+/* Pause heavy continuous blur motion while cover morph is flying to guarantee locked 60/120fps */
+html[data-np-morph='active'] .flow img {
+  animation-play-state: paused !important;
+}
+
+/* Hide static source and target covers while the shared morph cover is in flight */
+html[data-np-morph='active'] [data-cover-role='pb-mini-cover'],
+html[data-np-morph='active'] [data-cover-role='np-target-cover'] {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+.np-morph-cover {
+  position: fixed;
+  z-index: 130;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.48);
+  will-change: transform, border-radius;
+}
+.np-morph-cover .cover .cover-fg {
+  opacity: 1 !important;
+  transition: none !important;
+}
+.np-morph-cover .vm-grooves,
+.np-morph-cover .vm-sheen {
+  transition: opacity 0.32s ease;
+}
+.np.phase-closing .np-morph-cover .vm-grooves,
+.np.phase-closing .np-morph-cover .vm-sheen {
+  opacity: 0;
+}
+
+.np-mode {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Top bar: 3-column grid keeps mode switch strictly centered at 50% regardless of right button count */
+.np-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 58px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 18px;
+  z-index: 110;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.np.chrome-hidden .np-top {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.np-top-left,
+.np-top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.np-top-left {
+  justify-self: start;
+}
+.np-mode-switch {
+  justify-self: center;
+}
+.np-top-right {
+  justify-self: end;
+}
+
+.np-round-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  color: rgba(255, 255, 255, 0.82);
+  transition: background 0.18s, transform 0.15s, color 0.18s;
+}
+.np-round-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.np-round-btn:active {
+  transform: scale(0.9);
+}
+.np-round-btn.on {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+}
+
+.np-mode-switch .segmented {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+}
+.np-mode-switch .segmented .seg-thumb {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.np-pill {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.18s, transform 0.15s, opacity 0.15s;
+}
+.np-pill:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+.np-pill:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.np-pill:disabled {
+  opacity: 0.45;
+}
+.np-pill.solid,
+.np-pill.on {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+}
+.np-pill.solid:hover:not(:disabled),
+.np-pill.on:hover:not(:disabled) {
+  background: #fff;
+}
+
+/* Vinyl Mode Background Blur Popover */
+.np-blur-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.np-blur-btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.np-blur-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 292px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(24, 24, 30, 0.72);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 125;
+}
+.np-blur-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.np-blur-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+}
+.np-blur-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.np-blur-val {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.72);
+}
+.np-blur-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 0.15s, opacity 0.15s;
+}
+.np-blur-reset:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+.np-blur-reset:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.np-blur-slider {
+  margin: 2px 0;
+}
+.np-blur-ticks {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.np-blur-ticks button {
+  flex: 1;
+  padding: 5px 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.np-blur-ticks button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+/* ------------------------------------------------------------ */
+/* Backgrounds                                                   */
+/* ------------------------------------------------------------ */
+
+.np-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0d0d10;
+}
+.np-bg-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+}
+.flow-wrap,
+.blur-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.blur-wrap img {
+  position: absolute;
+  inset: -16%;
+  width: 132%;
+  height: 132%;
+  object-fit: cover;
+  filter: blur(42px) saturate(1.55) brightness(0.82);
+  transform: scale(1.16);
+  will-change: filter, transform;
+}
+
+/* Flowing cover blobs */
+.flow {
+  position: absolute;
+  inset: 0;
+  filter: blur(80px) saturate(1.9) contrast(1.08);
+  transform: scale(1.2);
+}
+.flow img {
+  position: absolute;
+  width: 68%;
+  height: 68%;
+  object-fit: cover;
+  border-radius: 50%;
+  mix-blend-mode: normal;
+  opacity: 0.85;
+}
+.flow .f1 {
+  top: -10%;
+  left: -10%;
+  animation: float1 28s ease-in-out infinite alternate;
+}
+.flow .f2 {
+  top: -5%;
+  right: -12%;
+  animation: float2 34s ease-in-out infinite alternate;
+}
+.flow .f3 {
+  bottom: -15%;
+  left: 5%;
+  animation: float3 31s ease-in-out infinite alternate;
+}
+.flow .f4 {
+  bottom: -10%;
+  right: -5%;
+  animation: float4 25s ease-in-out infinite alternate;
+}
+.flow.paused img {
+  animation-play-state: paused;
+}
+
+@keyframes float1 {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    transform: translate(18%, 14%) rotate(110deg) scale(1.25);
+  }
+}
+@keyframes float2 {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1.15);
+  }
+  100% {
+    transform: translate(-22%, 18%) rotate(-95deg) scale(0.95);
+  }
+}
+@keyframes float3 {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    transform: translate(20%, -18%) rotate(85deg) scale(1.2);
+  }
+}
+@keyframes float4 {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1.1);
+  }
+  100% {
+    transform: translate(-16%, -20%) rotate(-120deg) scale(1);
+  }
+}
+
+.flow-fallback {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 25% 25%, #fa2d48, transparent 55%),
+    radial-gradient(circle at 75% 30%, #5e5ce6, transparent 55%),
+    radial-gradient(circle at 50% 80%, #0a84ff, transparent 55%);
+}
+
+.aurora-canvas {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  filter: blur(36px) saturate(1.5);
+}
+
+/* ------------------------------------------------------------ */
+/* Shared track info & progress                                  */
+/* ------------------------------------------------------------ */
+
+.np-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.np-info-text {
+  min-width: 0;
+  flex: 1;
+}
+.np-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-artist {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.68);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.np-artist .hover-link {
+  cursor: pointer;
+}
+.np-artist .hover-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.np-progress {
+  max-width: none !important;
+  margin: 10px 0 4px;
+}
+
+.np-nolyrics {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ------------------------------------------------------------ */
+/* Mode 1: Lyric Stage                                           */
+/* ------------------------------------------------------------ */
+
+.np-lyric {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 5vw 36px;
+  gap: 4vw;
+  z-index: 1;
+}
+.np-lyric.single {
+  gap: 0;
+}
+
+.am-left {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(420px, 42vw);
+  max-width: 420px;
+  min-width: 310px;
+  flex-shrink: 0;
+  will-change: transform;
+}
+.np-lyric.single .am-left {
+  width: min(420px, 86vw);
+}
+.am-cover {
+  position: relative;
+  width: min(360px, 42vh);
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.am-controls {
+  width: 100%;
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.am-right {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 0;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------ */
+/* Mode 2: Vinyl / CD + Radial Visualizer                        */
+/* ------------------------------------------------------------ */
+
+.np-vinyl {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 58px 40px 26px;
+  z-index: 1;
+}
+.vm-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.vm-disc-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(max(200px, min(100cqh, 90cqw)) * 0.56);
+  height: calc(max(200px, min(100cqh, 90cqw)) * 0.56);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 0 6px rgba(255, 255, 255, 0.08);
+  transition: transform 0.08s linear;
+}
+.vm-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  will-change: transform;
+}
+.vm-grooves {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 5px,
+    rgba(0, 0, 0, 0.1) 6px,
+    rgba(255, 255, 255, 0.035) 7px
+  );
+  pointer-events: none;
+}
+.vm-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 35deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.14) 40deg,
+    transparent 80deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.12) 220deg,
+    transparent 260deg
+  );
+  pointer-events: none;
+}
+
+.vm-bottom {
+  position: relative;
+  z-index: 2;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.np.chrome-hidden .vm-bottom {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+.vm-lyric {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px 16px;
+  font-family: var(--font-lyrics);
+}
+.vm-roma {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 2px;
+  letter-spacing: 0.02em;
+}
+.vm-text {
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+.vm-trans {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.68);
+  margin-top: 2px;
+}
+.vm-controls {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------ */
+/* Mode 3: Aurora / Immersive Stage                              */
+/* ------------------------------------------------------------ */
+
+.np-aurora {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 68px 6vw 32px;
+  z-index: 1;
+}
+.au-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.au-center {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.au-lines {
+  width: 100%;
+  max-width: 1100px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 0 20px;
+  font-family: var(--font-lyrics);
+}
+.au-prev,
+.au-next {
+  font-size: 0.46em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.28);
+  filter: blur(0.6px);
+  min-height: 1.4em;
+  max-width: 80%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.au-cur {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.au-roma {
+  font-size: 0.4em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.03em;
+}
+.au-text-wrap {
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.au-text {
+  display: inline-block;
+  --p: 100%;
+  font-weight: 800;
+  line-height: 1.24;
+  letter-spacing: -0.02em;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff var(--p),
+    rgba(255, 255, 255, 0.36) calc(var(--p) + 6%),
+    rgba(255, 255, 255, 0.36) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.35));
+}
+.au-text-words {
+  display: inline;
+  font-weight: 800;
+  line-height: 1.24;
+  letter-spacing: -0.02em;
+  filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.35));
+}
+.au-word {
+  --wp: 0%;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff var(--wp),
+    rgba(255, 255, 255, 0.36) calc(var(--wp) + 8%),
+    rgba(255, 255, 255, 0.36) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.au-text.dots {
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.3em;
+}
+.au-trans {
+  font-size: 0.48em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+.au-title-big {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+.au-controls {
+  position: relative;
+  z-index: 2;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.np.chrome-hidden .au-controls,
+.np.chrome-hidden .au-head {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ */
+/* Spring-Physics Cascade Lyrics View                            */
+/* ------------------------------------------------------------ */
+
+.lyrics-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
+  padding: 0 24px;
+  font-family: var(--font-lyrics);
+}
+.lyrics-view.unsynced {
+  overflow-y: auto;
+  padding: 48px 24px;
+}
+.lv-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 18px;
+}
+.lv-inner {
+  position: relative;
+  width: 100%;
+}
+.lv-line {
+  padding: 14px 18px;
+  margin: 2px -18px;
+  border-radius: 14px;
+  font-weight: 700;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.34);
+  cursor: pointer;
+  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1), filter 0.38s ease, color 0.32s ease, background 0.2s ease;
+}
+.lyrics-view.user-scroll .lv-line {
+  transition: transform 0.14s ease-out, filter 0.18s ease, color 0.22s ease;
+  filter: none !important;
+}
+.lv-line:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  filter: none !important;
+}
+.lv-line.passed {
+  color: rgba(255, 255, 255, 0.24);
+}
+.lv-line.active {
+  color: #ffffff;
+  text-shadow: 0 4px 28px rgba(255, 255, 255, 0.22);
+}
+.lv-line.static {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.85);
+}
+.lv-roma {
+  font-size: 0.46em;
+  font-weight: 600;
+  opacity: 0.78;
+  margin-bottom: 4px;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+.lv-text {
+  word-break: break-word;
+}
+.lv-word {
+  --wp: 0%;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff var(--wp),
+    rgba(255, 255, 255, 0.38) calc(var(--wp) + 8%),
+    rgba(255, 255, 255, 0.38) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lv-trans {
+  font-size: 0.56em;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 5px;
+  line-height: 1.35;
+}
+
+.lv-resume-btn {
+  position: absolute;
+  bottom: 22px;
+  right: 28px;
+  z-index: 15;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.18s, transform 0.15s;
+}
+.lv-resume-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+
+.lv-dots {
+  display: inline-flex;
+  gap: 10px;
+  padding: 8px 0;
+}
+.lv-dots span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.25;
+  transition: transform 0.3s ease;
+}
+.lv-dots.on span {
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+.lv-dots.on span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.lv-dots.on span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes dot-pulse {
+  0%,
+  100% {
+    transform: scale(0.85);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* ------------------------------------------------------------ */
+/* Lyrics Drawer Panel                                           */
+/* ------------------------------------------------------------ */
+
+.lyrics-panel {
+  position: absolute;
+  top: 70px;
+  right: 18px;
+  bottom: 24px;
+  width: 360px;
+  border-radius: 16px;
+  background: rgba(28, 28, 32, 0.65);
+  backdrop-filter: blur(45px) saturate(190%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lp-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lp-section {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2px;
+}
+.lp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  min-height: 26px;
+}
+.lp-label {
+  color: rgba(255, 255, 255, 0.65);
+}
+.lp-tag {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  margin-left: 6px;
+}
+.lp-tag.ok {
+  background: rgba(48, 209, 88, 0.25);
+  color: #4be374;
+  margin-left: 0;
+}
+.lp-hint {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.lp-source-seg .segmented {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.28);
+}
+.lp-source-seg .segmented button {
+  flex: 1;
+  justify-content: center;
+  padding: 0 6px;
+  font-size: 11.5px;
+}
+.lp-source-seg .segmented .seg-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+.lp-input {
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: #fff;
+}
+.lp-input:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.lp-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.lp-result {
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+}
+.lp-result:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.lp-result.on {
+  background: rgba(255, 255, 255, 0.18);
+}
+.lp-r-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-r-sub {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-r-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 3px;
+}
+.lp-src {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.85);
+}
+.lp-src.netease {
+  background: rgba(230, 0, 38, 0.35);
+}
+.lp-src.lrclib {
+  background: rgba(10, 132, 255, 0.35);
+}
+.lp-src.qq {
+  background: rgba(16, 185, 129, 0.35);
+}
+.lp-src.lyricsplus {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np .np-bg,
+  .np .np-top,
+  .np .vm-stage canvas,
+  .np .np-stagger-1,
+  .np .np-stagger-2,
+  .np .np-stagger-3 {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .lv-line {
+    transition-duration: 0.12s !important;
+  }
+}

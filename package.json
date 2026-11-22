@@ -1,0 +1,42 @@
+{
+  "name": "kaze",
+  "productName": "Kaze",
+  "version": "1.1.0",
+  "description": "High-resolution local music player with spectral verification, pluggable metadata & lyrics fallback chains",
+  "main": "./out/main/index.js",
+  "author": "Kaze",
+  "license": "MIT",
+  "homepage": "https://github.com/Akumy-01/Kaze",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dist": "electron-vite build && electron-builder --win --x64",
+    "dist:dir": "electron-vite build && electron-builder --win --x64 --dir"
+  },
+  "dependencies": {
+    "kuroshiro": "^1.2.1",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0",
+    "music-metadata": "^11.16.1",
+    "node-taglib-sharp": "^6.0.3"
+  },
+  "devDependencies": {
+    "@fontsource/m-plus-rounded-1c": "^5.3.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "framer-motion": "^14.12.0",
+    "lucide-react": "^1.72.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-virtuoso": "^4.18.21",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.8",
+    "zustand": "^5.1.0"
+  }
+}

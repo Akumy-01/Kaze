@@ -1,0 +1,318 @@
+/* Desktop Lyrics window stylesheet */
+:root {
+  --color-lyric-unplay: rgba(255, 255, 255, 1);
+  --color-lyric-played: rgba(7, 197, 86, 1);
+  --color-lyric-shadow: rgba(0, 0, 0, 0.28);
+  --color-lyric-shadow-font-mode: rgba(0, 0, 0, 0.14);
+}
+
+.kaze-dl-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.3s ease;
+  opacity: 1;
+}
+
+.kaze-dl-container.hide {
+  opacity: 0.05;
+}
+
+.kaze-dl-container.hide:not(.lock):hover {
+  opacity: 1;
+}
+
+.kaze-dl-main {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 5px;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+}
+
+.kaze-dl-container.lock .kaze-dl-main {
+  background-color: transparent;
+}
+
+.kaze-dl-control-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 10;
+}
+
+.kaze-dl-main:hover .kaze-dl-control-bar,
+.kaze-dl-control-bar.pin {
+  opacity: 1;
+}
+
+.kaze-dl-btns {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.72);
+  cursor: move;
+}
+
+.kaze-dl-btn {
+  min-height: 36px;
+  padding: 0 9px;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.kaze-dl-btn:hover {
+  opacity: 0.72;
+}
+
+.kaze-dl-btn.active {
+  color: var(--color-lyric-played);
+}
+
+.kaze-dl-sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 0 2px;
+}
+
+.kaze-dl-theme-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  min-height: 36px;
+  box-sizing: border-box;
+  background-color: rgba(0, 0, 0, 0.76);
+  color: #fff;
+  font-size: 12px;
+}
+
+.kaze-dl-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.kaze-dl-swatch:hover {
+  transform: scale(1.12);
+}
+
+.kaze-dl-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.15);
+}
+
+.kaze-dl-chip {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.kaze-dl-chip.on {
+  border-color: var(--color-lyric-played);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Unlock hotzone pill when locked */
+.kaze-dl-unlock-pill {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 78px;
+  height: 28px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.74);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  z-index: 20;
+  transition: opacity 0.15s ease;
+}
+
+/* Lyric scroll container (horizontal & vertical) */
+.kaze-dl-lyric {
+  position: relative;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-size: 24px;
+  contain: strict;
+  cursor: move;
+  box-sizing: border-box;
+  padding: 10px 18px;
+}
+
+.kaze-dl-lyric.vertical {
+  writing-mode: vertical-rl;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 16px 12px;
+}
+
+.kaze-dl-lyric.dragging .font-lrc {
+  cursor: grabbing;
+}
+
+.kaze-dl-lyric-space {
+  height: 70%;
+}
+
+.kaze-dl-lyric.vertical .kaze-dl-lyric-space {
+  height: auto;
+  width: 70%;
+}
+
+.kaze-dl-line-content {
+  line-height: 1.24;
+  margin: var(--line-gap, 14px) 0;
+  overflow-wrap: break-word;
+}
+
+.kaze-dl-lyric.vertical .kaze-dl-line-content {
+  margin: 0 var(--line-gap, 14px);
+}
+
+.kaze-dl-line-content .line {
+  position: relative;
+  transition: font-size 0.35s ease;
+}
+
+.kaze-dl-line-content .extended {
+  font-size: 0.78em;
+  margin-top: var(--line-extended-gap, 4px);
+  transition: font-size 0.35s ease;
+}
+
+.kaze-dl-lyric.vertical .kaze-dl-line-content .extended {
+  margin-top: 0;
+  margin-right: var(--line-extended-gap, 4px);
+}
+
+.kaze-dl-lyric.zoom-active .kaze-dl-line-content.active .line {
+  font-size: 1.2em;
+}
+
+.kaze-dl-lyric.zoom-active .kaze-dl-line-content.active .extended {
+  font-size: 0.92em;
+}
+
+.kaze-dl-lyric.bold-font .font-mode > .line,
+.kaze-dl-lyric.bold-font .line-mode > .line,
+.kaze-dl-lyric.bold-font .extended {
+  font-weight: 700;
+}
+
+.kaze-dl-line-content .font-lrc {
+  position: relative;
+  display: inline-block;
+  padding: 0.08em 0.14em;
+  margin: -0.08em 0;
+  color: var(--color-lyric-unplay);
+  cursor: grab;
+  transition: color 0.3s ease;
+}
+
+/* Crisp 8-direction outline shadow without heavy blur halo */
+.kaze-dl-line-content.line-mode .font-lrc,
+.kaze-dl-line-content .extended .font-lrc {
+  text-shadow:
+    0.04em 0.04em 0 var(--color-lyric-shadow),
+    0.04em -0.03em 0 var(--color-lyric-shadow),
+    -0.04em -0.03em 0 var(--color-lyric-shadow),
+    -0.04em 0.04em 0 var(--color-lyric-shadow),
+    0.04em 0 0 var(--color-lyric-shadow),
+    -0.04em 0 0 var(--color-lyric-shadow),
+    0 0.04em 0 var(--color-lyric-shadow),
+    0 -0.03em 0 var(--color-lyric-shadow),
+    0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+.kaze-dl-line-content.line-mode.active .font-lrc,
+.kaze-dl-line-content.font-mode.played .font-lrc {
+  color: var(--color-lyric-played);
+}
+
+/* Dual-layer karaoke mode (outline shadow beneath clipped gradient sweep) */
+.kaze-dl-line-content.font-mode > .line > .lrc-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.kaze-dl-line-content.font-mode > .line > .lrc-wrap > .shadow {
+  position: absolute;
+  inset: 0;
+  padding: 0.08em 0.14em;
+  margin: -0.08em 0;
+  color: transparent;
+  pointer-events: none;
+  text-shadow:
+    1px 1px 0 var(--color-lyric-shadow-font-mode),
+    -1px -1px 0 var(--color-lyric-shadow-font-mode),
+    1px -1px 0 var(--color-lyric-shadow-font-mode),
+    -1px 1px 0 var(--color-lyric-shadow-font-mode),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+.kaze-dl-line-content.font-mode > .line > .lrc-wrap > .font-lrc > span {
+  background-repeat: no-repeat;
+  background-color: var(--color-lyric-unplay);
+  background-image: linear-gradient(90deg, var(--color-lyric-played), var(--color-lyric-played));
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  padding: 0 0.1em 0.1em;
+  margin: 0 -0.1em -0.1em;
+  will-change: background-size;
+}
+
+/* Window edge and corner resize handles */
+.kaze-dl-resize {
+  position: absolute;
+  z-index: 12;
+}
+.kaze-dl-resize-left { left: 0; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.kaze-dl-resize-right { right: 0; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.kaze-dl-resize-top { top: 0; left: 6px; right: 6px; height: 5px; cursor: ns-resize; }
+.kaze-dl-resize-bottom { bottom: 0; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.kaze-dl-resize-top-left { left: 0; top: 0; width: 8px; height: 8px; cursor: nwse-resize; }
+.kaze-dl-resize-top-right { right: 0; top: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.kaze-dl-resize-bottom-left { left: 0; bottom: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.kaze-dl-resize-bottom-right { right: 0; bottom: 0; width: 8px; height: 8px; cursor: nwse-resize; }
